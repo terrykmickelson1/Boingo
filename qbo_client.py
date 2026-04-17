@@ -199,7 +199,6 @@ def query_balance_sheet(as_of_date: str) -> dict:
         _company_url("reports/BalanceSheet"),
         headers=_headers(),
         params={
-            "date_macro": "custom",
             "start_date": as_of_date,
             "end_date":   as_of_date,
             "accounting_method": "Accrual",
