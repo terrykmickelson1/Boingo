@@ -12,11 +12,8 @@ After setup, tokens auto-refresh on every API call.
 """
 
 import json
-import time
-import toml
 import requests
 import streamlit as st
-from pathlib import Path
 from urllib.parse import urlencode
 from base64 import b64encode
 from datetime import datetime, timedelta
@@ -27,26 +24,13 @@ REVOKE_ENDPOINT = "https://developer.api.intuit.com/v2/oauth2/tokens/revoke"
 API_BASE       = "https://quickbooks.api.intuit.com/v3/company"
 SCOPE          = "com.intuit.quickbooks.accounting"
 
-SECRETS_PATH = Path(__file__).parent / ".streamlit" / "secrets.toml"
-
-
-# ── Secrets helpers ───────────────────────────────────────────────────────────
-
-def _load_secrets() -> dict:
-    return toml.loads(SECRETS_PATH.read_text())
-
-
 def _save_token(access_token: str, refresh_token: str, realm_id: str, expires_in: int):
-    secrets = _load_secrets()
+    from db import set_config
     expiry = (datetime.utcnow() + timedelta(seconds=expires_in)).isoformat()
-    secrets.update({
-        "QBO_ACCESS_TOKEN":  access_token,
-        "QBO_REFRESH_TOKEN": refresh_token,
-        "QBO_REALM_ID":      realm_id,
-        "QBO_TOKEN_EXPIRY":  expiry,
-    })
-    SECRETS_PATH.write_text(toml.dumps(secrets))
-    # Also update st.secrets in memory so the current session sees it
+    set_config("QBO_ACCESS_TOKEN",  access_token)
+    set_config("QBO_REFRESH_TOKEN", refresh_token)
+    set_config("QBO_REALM_ID",      realm_id)
+    set_config("QBO_TOKEN_EXPIRY",  expiry)
     st.session_state["_qbo_access_token"]  = access_token
     st.session_state["_qbo_refresh_token"] = refresh_token
     st.session_state["_qbo_realm_id"]      = realm_id
@@ -54,7 +38,9 @@ def _save_token(access_token: str, refresh_token: str, realm_id: str, expires_in
 
 
 def _get(key: str, default: str = "") -> str:
+    from db import get_config
     return (st.session_state.get(f"_qbo_{key.lower()}")
+            or get_config(key)
             or st.secrets.get(key, default))
 
 

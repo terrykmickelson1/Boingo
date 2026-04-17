@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from datetime import date, datetime
 
-DB_PATH = Path(__file__).parent / "data" / "boingo.db"
+DB_PATH = Path.home() / ".boingo" / "boingo.db"
 
 
 def get_conn():
@@ -45,7 +45,26 @@ def init_db():
                 ON balance_snapshots(period_date);
             CREATE INDEX IF NOT EXISTS idx_snapshots_account
                 ON balance_snapshots(account_id);
+
+            CREATE TABLE IF NOT EXISTS config (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            );
         """)
+
+
+def get_config(key: str) -> str | None:
+    with get_conn() as conn:
+        row = conn.execute("SELECT value FROM config WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else None
+
+
+def set_config(key: str, value: str):
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO config (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """, (key, value))
 
 
 def upsert_snapshot(period_date: date, account_id: str, qb_account: str,
