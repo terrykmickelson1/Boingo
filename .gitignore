@@ -1,0 +1,5 @@
+data/boingo.db
+.env
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
