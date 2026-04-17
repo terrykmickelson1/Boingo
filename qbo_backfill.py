@@ -31,7 +31,6 @@ def fetch_balance_sheet(as_of: date) -> dict:
         f"{API_BASE}/{_realm()}/reports/BalanceSheet",
         headers=_headers(),
         params={
-            "date_macro":        "custom",
             "start_date":        as_of.isoformat(),
             "end_date":          as_of.isoformat(),
             "accounting_method": "Accrual",
