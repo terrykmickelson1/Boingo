@@ -49,7 +49,7 @@ def _walk_rows(rows: list, results: dict):
         if row_type == "Data" and len(col_data) >= 2:
             name = col_data[0].get("value", "").strip()
             raw  = col_data[1].get("value", "").strip()
-            if name and raw not in ("", "0.00", None):
+            if name and raw not in ("", None):
                 try:
                     results[name] = float(raw.replace(",", ""))
                 except ValueError:
@@ -63,11 +63,17 @@ def _walk_rows(rows: list, results: dict):
         if "Summary" in row:
             summary_cols = row["Summary"].get("ColData", [])
             if len(summary_cols) >= 2:
-                name = summary_cols[0].get("value", "").strip()
-                raw  = summary_cols[1].get("value", "").strip()
-                if name and raw not in ("", "0.00", None):
+                total_name = summary_cols[0].get("value", "").strip()
+                raw        = summary_cols[1].get("value", "").strip()
+                if total_name and raw not in ("", None):
                     try:
-                        results[f"__total__{name}"] = float(raw.replace(",", ""))
+                        val = float(raw.replace(",", ""))
+                        results[f"__total__{total_name}"] = val
+                        # Also index under the clean account name (strip "Total " prefix)
+                        # so match_to_accounts can find section accounts directly
+                        clean = re.sub(r'^Total\s+', '', total_name, flags=re.IGNORECASE).strip()
+                        if clean != total_name:
+                            results.setdefault(f"__section__{clean}", val)
                     except ValueError:
                         pass
 
@@ -105,6 +111,14 @@ def match_to_accounts(qb_balances: dict[str, float],
             # Try matching just the leaf account name (after last ":")
             leaf = qb_name.split(":")[-1].strip()
             balance = qb_balances.get(leaf)
+
+        if balance is None:
+            # Account is a QB Section (has sub-accounts) — use section total
+            balance = qb_balances.get(f"__section__{qb_name}")
+
+        if balance is None:
+            # Last resort: explicit "Total X" summary row
+            balance = qb_balances.get(f"__total__Total {qb_name}")
 
         if balance is not None:
             # Liabilities in QB are stored as positive numbers representing amounts owed
